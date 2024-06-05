@@ -2,6 +2,12 @@
 
 Useful tool for checking if the URLs you provided are in or out of the scope of a Bug Bounty Program.
 
+## Install
+
+```bash
+go install github.com/vitorfhc/checkscope@latest
+```
+
 ## Usage
 
 **Get everything in scope**
