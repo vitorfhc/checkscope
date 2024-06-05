@@ -25,7 +25,7 @@ cat all-urls.txt | checkscope -r
 **Define a diferent scope file**
 
 ```bash
-cat all-urls.txt | checkscope -i scopefile.txt
+cat all-urls.txt | checkscope -f scopefile.txt
 ```
 
 **See other flags**
