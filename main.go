@@ -4,13 +4,11 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
-	"regexp"
-	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/vitorfhc/checkscope/pkg/checkscope"
 )
 
 func main() {
@@ -42,42 +40,30 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to read scope file")
 	}
 
-	var scopeCompiledRegex []*regexp.Regexp
-	r, err := regexp.Compile(`\*+\.?`)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to compile regex")
-	}
-	for i, scope := range scopes {
-		scopes[i] = r.ReplaceAllString(scope, "*")
-		scopes[i] = wildcardToRegex(scopes[i])
-		scopeCompiledRegex = append(scopeCompiledRegex, regexp.MustCompile(scopes[i]))
-		log.Debug().Str("scope", scopes[i]).Msg("Scope regex added")
-	}
-
 	log.Info().Msg("Reading input from stdin")
+	var inputs []string
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		match := false
 		line := scanner.Text()
-		parsedUrl, err := url.Parse(line)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to parse URL")
-		}
-		hostname := parsedUrl.Hostname()
-		for _, scope := range scopeCompiledRegex {
-			if scope.MatchString(hostname) {
-				match = true
-				break
-			}
-		}
+		inputs = append(inputs, line)
+	}
 
-		if match && !*reverseFlag {
-			fmt.Println(line)
-		} else if !match && *reverseFlag {
-			fmt.Println(line)
-		}
+	if err := scanner.Err(); err != nil {
+		log.Fatal().Err(err).Msg("Failed to read input from stdin")
+	}
 
-		log.Debug().Str("line", line).Bool("match", match).Msg("Line processed")
+	cs := checkscope.New(inputs, scopes)
+
+	matches, err := cs.Run()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to run checkscope")
+	}
+
+	matchOnly := !*reverseFlag
+	for _, match := range matches {
+		if match.Matched == matchOnly {
+			fmt.Println(match.Input)
+		}
 	}
 }
 
@@ -99,21 +85,4 @@ func readFileLines(filename string) ([]string, error) {
 	}
 
 	return lines, nil
-}
-
-func escapeSpecialRegexChars(input string) string {
-	specialChars := []string{".", "+", "?", "^", "$", "(", ")", "[", "]", "{", "}", "|"}
-	for _, char := range specialChars {
-		input = strings.ReplaceAll(input, char, "\\"+char)
-	}
-	return input
-}
-
-func wildcardToRegex(pattern string) string {
-	// Escape special regex characters first
-	escapedPattern := escapeSpecialRegexChars(pattern)
-	// Replace wildcard * with regex .*
-	regexPattern := strings.ReplaceAll(escapedPattern, "*", ".*")
-	// Add anchors to match the whole string
-	return "^" + regexPattern + "$"
 }

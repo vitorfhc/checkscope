@@ -51,7 +51,20 @@ bar.com
 |`https://xablau.foo.com/a/b/c?a=1`|Yes|
 |`xablau.foo.com/a/b/c?a=1`|Yes|
 |`abc.foo.com`|Yes|
-|`foo.com`|Yes|
 |`a.zed.b`|Yes|
+|`foo.com`|No|
 |`sadad.net`|No|
 |`sub.bar.com`|No|
+
+In the example above, if you want `foo.com` to match you must use one of the following:
+
+```
+*.foo.com
+foo.com
+```
+
+or
+
+```
+*foo.com
+```

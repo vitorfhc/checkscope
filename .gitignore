@@ -1,3 +1,4 @@
 scope.txt
-checkscope
 bin
+.vscode
+.DS_Store
