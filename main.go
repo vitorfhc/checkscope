@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -17,6 +18,7 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	scopeFileFlag := flag.String("f", "scope.txt", "Scope file")
+	outOfScopeFileFlag := flag.String("o", "", "Out of scope file")
 	debugFlag := flag.Bool("d", false, "Debug mode")
 	silentFlag := flag.Bool("s", false, "Silent mode")
 	reverseFlag := flag.Bool("r", false, "Reverse mode (prints out of scope URLs)")
@@ -40,28 +42,44 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to read scope file")
 	}
 
+	outs := []string{}
+	if *outOfScopeFileFlag != "" {
+		log.Info().Msgf("Reading out of scope from %s", *outOfScopeFileFlag)
+		outs, err = readFileLines(*outOfScopeFileFlag)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to read out of scope file")
+		}
+	}
+
 	log.Info().Msg("Reading input from stdin")
 	var inputs []string
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
-		inputs = append(inputs, line)
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			inputs = append(inputs, line)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal().Err(err).Msg("Failed to read input from stdin")
 	}
 
-	cs := checkscope.New(inputs, scopes)
+	cs := checkscope.New(inputs, scopes, outs)
 
 	matches, err := cs.Run()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to run checkscope")
 	}
 
-	matchOnly := !*reverseFlag
+	typeToMatch := checkscope.MATCH_TYPE_IN_SCOPE
+	if *reverseFlag {
+		typeToMatch = checkscope.MATCH_TYPE_OUT_SCOPE
+	}
+
 	for _, match := range matches {
-		if match.Matched == matchOnly {
+		if match.MatchType == typeToMatch {
 			fmt.Println(match.Input)
 		}
 	}
